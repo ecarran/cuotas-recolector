@@ -1,4 +1,4 @@
-name: Backup cuotas.csv desde memoria
+name: Backup CUOTAS CSV
 
 on:
   schedule:
@@ -7,20 +7,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write            # Necesario para hacer push
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v3
+      - name: Set up job
+        run: echo "Iniciando backup CUOTAS"
 
-      - name: Llamar a /recolectar para asegurar datos
+      - name: Llamar a /recolectar para asegurar CSV actualizado
         run: |
           curl -s https://cuotas-recolector.onrender.com/recolectar
-          echo "Esperando 10s..."
+          echo "Esperando 10s para que Render procese..."
           sleep 10
 
       - name: Descargar CSV acumulado
@@ -31,21 +30,23 @@ jobs:
             exit 1
           fi
 
-      - name: Guardar con timestamp
+      - name: Crear carpeta y mover archivo
         run: |
           mkdir -p backups
           TS=$(date +"%Y-%m-%d_%H-%M")
           mv cuotas.csv "backups/cuotas_$TS.csv"
 
-      - name: Commit y push si hubo cambios
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configurar Git
         run: |
           git config --global user.email "bot@example.com"
           git config --global user.name "GitHub Actions Bot"
+
+      - name: Inicializar y subir archivo al repositorio
+        run: |
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git checkout main || git checkout -b main
+          git pull origin main
           git add backups/
-          if git diff --cached --quiet; then
-            echo "✅ Sin cambios, no se hace commit"
-          else
-            git commit -m "Backup automático del $(date +'%Y-%m-%d %H:%M')"
-            git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+          git commit -m "Backup automático del $(date +"%Y-%m-%d %H:%M")"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
