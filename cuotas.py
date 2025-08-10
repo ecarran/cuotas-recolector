@@ -1,8 +1,10 @@
+
 import requests
 import time
 import pandas as pd
 from datetime import datetime
 from io import StringIO
+import csv
 
 API_KEY = "b7bfae26de0c35e8be8ec4c526023883"
 BASE = "https://api.the-odds-api.com/v4/sports/{sport}/odds"
@@ -74,6 +76,14 @@ def obtener_csv() -> bytes:
     if not acumulador:
         return b""
     df = pd.DataFrame(acumulador)
+    # Reemplazar punto decimal por coma (solo para exportar)
+    df["cuota"] = df["cuota"].map(lambda x: str(x).replace(".", ","))
     buffer = StringIO()
-    df.to_csv(buffer, index=False, encoding="utf-8-sig")
+    df.to_csv(
+        buffer,
+        index=False,
+        encoding="utf-8-sig",
+        sep=",",
+        quoting=csv.QUOTE_NONNUMERIC
+    )
     return buffer.getvalue().encode("utf-8-sig")
