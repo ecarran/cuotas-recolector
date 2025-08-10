@@ -3,8 +3,8 @@ import time
 import pandas as pd
 from datetime import datetime
 from io import StringIO
-import os
-API_KEY = os.getenv("ODDS_API_KEY")
+
+API_KEY = "b7bfae26de0c35e8be8ec4c526023883"
 BASE = "https://api.the-odds-api.com/v4/sports/{sport}/odds"
 MARKET = "h2h"
 REGION = "eu"
@@ -13,6 +13,9 @@ SPORTS = [
     "soccer_spain_la_liga",
     "soccer_spain_segunda_division",
 ]
+
+# Acumulador en memoria
+acumulador = []
 
 def fetch_odds(sport_key):
     params = {
@@ -54,19 +57,23 @@ def flatten(events, timestamp):
     return rows
 
 def recolectar_datos():
-    all_rows = []
     now = datetime.now().isoformat()
+    nuevos = []
     for sport in SPORTS:
         try:
             events = fetch_odds(sport)
             if events:
-                all_rows.extend(flatten(events, now))
+                nuevos.extend(flatten(events, now))
             time.sleep(0.3)
         except Exception as e:
             print(f"❌ Error con {sport}: {e}")
-    return pd.DataFrame(all_rows)
+    acumulador.extend(nuevos)
+    return pd.DataFrame(acumulador)
 
-def generar_csv(df: pd.DataFrame) -> bytes:
+def obtener_csv() -> bytes:
+    if not acumulador:
+        return b""
+    df = pd.DataFrame(acumulador)
     buffer = StringIO()
     df.to_csv(buffer, index=False, encoding="utf-8-sig")
     return buffer.getvalue().encode("utf-8-sig")

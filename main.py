@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Response
-from cuotas import recolectar_y_guardar, obtener_csv
+from cuotas import recolectar_datos, obtener_csv
 
 app = FastAPI()
 
@@ -13,8 +13,8 @@ def healthz():
 
 @app.get("/recolectar")
 def recolectar():
-    total = recolectar_y_guardar()
-    return {"estado": "ok", "nuevos_registros": total}
+    df = recolectar_datos()
+    return {"estado": "ok", "nuevos_registros": len(df)}
 
 @app.get("/descargar-csv")
 def descargar_csv():
