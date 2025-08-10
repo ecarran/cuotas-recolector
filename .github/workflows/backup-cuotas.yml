@@ -1,4 +1,3 @@
-
 name: Backup cuotas.csv desde memoria
 
 on:
@@ -52,6 +51,4 @@ jobs:
           else
             git commit -m "Backup automático del $(date +'%Y-%m-%d %H:%M')"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
-
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
-        
+          fi
