@@ -1,41 +1,39 @@
-name: Backup Cuotas DB
+
+name: Backup cuotas.csv desde memoria
 
 on:
   schedule:
-    - cron: '30 10 * * *'  # 12:30 hora peninsular (10:30 UTC)
-    - cron: '30 22 * * *'  # 00:30 hora peninsular (22:30 UTC)
+    - cron: '0 6,18 * * *'  # Dos veces al día: 06:00 y 18:00 UTC
   workflow_dispatch:
-
-permissions:
-  contents: write            # Necesario para hacer push
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+
     steps:
       - name: Set up job
         run: echo "Iniciando backup Cuotas"
 
-      - name: Llamar a /recolectar para asegurar DB actualizada
+      - name: Llamar a /recolectar para asegurar que hay datos
         run: |
           curl -s https://cuotas-recolector.onrender.com/recolectar
           echo "Esperando 10s para que Render procese..."
           sleep 10
 
-      - name: Descargar base de datos
+      - name: Descargar CSV
         run: |
-          curl -o db.sqlite https://cuotas-recolector.onrender.com/descargar-csv
-          if [ ! -s db.sqlite ]; then
-            echo "❌ Error: la base de datos está vacía"
-            cat db.sqlite
+          curl -o cuotas.csv https://cuotas-recolector.onrender.com/descargar-csv
+          if [ ! -s cuotas.csv ]; then
+            echo "❌ Error: el archivo CSV está vacío"
+            cat cuotas.csv
             exit 1
           fi
 
       - name: Crear carpeta y mover archivo
         run: |
           mkdir -p backups
-          TS=$(date +"%Y-%m-%d_%H-%M")
-          mv db.sqlite "backups/cuotas_$TS.db"
+          TS=$(date +'%Y-%m-%d_%H-%M')
+          mv cuotas.csv "backups/cuotas_$TS.csv"
 
       - name: Configurar Git
         run: |
@@ -49,6 +47,11 @@ jobs:
           git checkout main || git checkout -b main
           git pull origin main
           git add backups/
-          git commit -m "Backup automático del $(date +"%Y-%m-%d %H:%M")"
+          if git diff --cached --quiet; then
+            echo "✅ Sin cambios, no se hace commit"
+          else
+            git commit -m "Backup automático del $(date +'%Y-%m-%d %H:%M')"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
         
