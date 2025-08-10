@@ -1,10 +1,13 @@
-
 name: Backup cuotas.csv desde memoria
 
 on:
   schedule:
-    - cron: '0 6,18 * * *'  # Dos veces al día
+    - cron: '30 10 * * *'  # 12:30 hora peninsular (10:30 UTC)
+    - cron: '30 22 * * *'  # 00:30 hora peninsular (22:30 UTC)
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   backup:
@@ -14,25 +17,24 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v3
 
-      - name: Llamar a /recolectar
+      - name: Llamar a /recolectar para asegurar datos
         run: |
           curl -s https://cuotas-recolector.onrender.com/recolectar
-          echo "Esperando 10s para que Render procese..."
+          echo "Esperando 10s..."
           sleep 10
 
-      - name: Descargar CSV
+      - name: Descargar CSV acumulado
         run: |
           curl -o cuotas.csv https://cuotas-recolector.onrender.com/descargar-csv
           if [ ! -s cuotas.csv ]; then
             echo "❌ Error: el archivo CSV está vacío"
-            cat cuotas.csv
             exit 1
           fi
 
-      - name: Crear carpeta y mover archivo
+      - name: Guardar con timestamp
         run: |
           mkdir -p backups
-          TS=$(date +'%Y-%m-%d_%H-%M')
+          TS=$(date +"%Y-%m-%d_%H-%M")
           mv cuotas.csv "backups/cuotas_$TS.csv"
 
       - name: Commit y push si hubo cambios
@@ -41,11 +43,9 @@ jobs:
         run: |
           git config --global user.email "bot@example.com"
           git config --global user.name "GitHub Actions Bot"
-
           git add backups/
           if git diff --cached --quiet; then
             echo "✅ Sin cambios, no se hace commit"
           else
-            git commit -m "Backup automático del $(date +'%Y-%m-%d %H:%M')"
+            git commit -m "Backup automático del $(date +"%Y-%m-%d %H:%M")"
             git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git HEAD:main
-          fi
