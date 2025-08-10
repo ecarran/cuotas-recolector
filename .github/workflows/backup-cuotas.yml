@@ -1,0 +1,54 @@
+name: Backup Cuotas DB
+
+on:
+  schedule:
+    - cron: '30 10 * * *'  # 12:30 hora peninsular (10:30 UTC)
+    - cron: '30 22 * * *'  # 00:30 hora peninsular (22:30 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write            # Necesario para hacer push
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up job
+        run: echo "Iniciando backup Cuotas"
+
+      - name: Llamar a /recolectar para asegurar DB actualizada
+        run: |
+          curl -s https://cuotas-recolector.onrender.com/recolectar
+          echo "Esperando 10s para que Render procese..."
+          sleep 10
+
+      - name: Descargar base de datos
+        run: |
+          curl -o db.sqlite https://cuotas-recolector.onrender.com/descargar-csv
+          if [ ! -s db.sqlite ]; then
+            echo "❌ Error: la base de datos está vacía"
+            cat db.sqlite
+            exit 1
+          fi
+
+      - name: Crear carpeta y mover archivo
+        run: |
+          mkdir -p backups
+          TS=$(date +"%Y-%m-%d_%H-%M")
+          mv db.sqlite "backups/cuotas_$TS.db"
+
+      - name: Configurar Git
+        run: |
+          git config --global user.email "bot@example.com"
+          git config --global user.name "GitHub Actions Bot"
+
+      - name: Inicializar y subir archivo al repositorio
+        run: |
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git checkout main || git checkout -b main
+          git pull origin main
+          git add backups/
+          git commit -m "Backup automático del $(date +"%Y-%m-%d %H:%M")"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+        
