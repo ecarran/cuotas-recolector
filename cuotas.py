@@ -3,8 +3,8 @@ import time
 import pandas as pd
 from datetime import datetime
 from io import StringIO
-
-API_KEY = "b7bfae26de0c35e8be8ec4c526023883"
+import os
+API_KEY = os.getenv("ODDS_API_KEY")
 BASE = "https://api.the-odds-api.com/v4/sports/{sport}/odds"
 MARKET = "h2h"
 REGION = "eu"
